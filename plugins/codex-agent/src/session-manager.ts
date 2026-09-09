@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { CodexSession, type SessionOptions } from './session.js'
+import { CodexSession, type ApprovalHandler, type SessionOptions } from './session.js'
 import { CwdPolicy } from './cwd-policy.js'
 import { MemoryEventStore, type EventStore } from './event-store.js'
 
@@ -9,13 +9,13 @@ export type SessionRecord = { readonly id: string; readonly session: CodexSessio
 export class CodexSessionManager {
   private readonly sessions = new Map<string, SessionRecord>()
 
-  constructor(private readonly cwdPolicy: CwdPolicy, private readonly maxSessions = 8) {}
+  constructor(private readonly cwdPolicy: CwdPolicy, private readonly maxSessions = 8, private readonly onRequest?: ApprovalHandler) {}
 
   create(options: SessionOptions): SessionRecord {
     if (this.sessions.size >= this.maxSessions) throw new Error('Session limit reached')
     const safeOptions = { ...options, cwd: this.cwdPolicy.resolve(options.cwd) }
     const events = new MemoryEventStore()
-    const record = { id: randomUUID(), events, session: new CodexSession(safeOptions, event => { void events.append(event) }), createdAt: Date.now() }
+    const record = { id: randomUUID(), events, session: new CodexSession(safeOptions, event => { void events.append(event) }, this.onRequest), createdAt: Date.now() }
     this.sessions.set(record.id, record)
     return record
   }
