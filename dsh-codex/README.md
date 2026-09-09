@@ -12,3 +12,13 @@ export DSH_CODEX_ALLOWED_ROOT="$HOME"
 ```
 
 禁止把真实 token、API key、OAuth token 或代理密码写入此目录、Git、URL、浏览器存储或日志。
+
+## 启动和构建
+
+```bash
+./bin/doctor.mjs
+./bin/start.mjs
+./bin/build.mjs
+```
+
+`start.mjs` 要求部署者提供实际 DSH profile；仓库只提供占位模板，不猜测 DSH 发行版的 profile 语法。

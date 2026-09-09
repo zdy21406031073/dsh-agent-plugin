@@ -2,7 +2,8 @@
 import { access } from 'node:fs/promises'
 import { constants } from 'node:fs'
 
-const required = ['DSH_CODEX_AUTH_TOKEN', 'DSH_CODEX_ALLOWED_ORIGINS', 'DSH_CODEX_ALLOWED_ROOT']
+const required = ['DSH_CODEX_AUTH_TOKEN', 'DSH_CODEX_ALLOWED_ORIGINS']
+if (!process.env.DSH_CODEX_ALLOWED_ROOT && !process.env.DSH_CODEX_ALLOWED_ROOTS) required.push('DSH_CODEX_ALLOWED_ROOTS')
 const missing = required.filter(name => !process.env[name])
 if (missing.length) {
   console.error(`Missing required runtime configuration: ${missing.join(', ')}`)
@@ -19,5 +20,11 @@ if (process.env.DSH_CODEX_ALLOWED_ORIGINS?.split(',').some(origin => origin.trim
 if (process.env.DSH_CODEX_ALLOWED_ROOT) {
   try { await access(process.env.DSH_CODEX_ALLOWED_ROOT, constants.R_OK) }
   catch { console.error('DSH_CODEX_ALLOWED_ROOT is not readable'); process.exitCode = 1 }
+}
+if (process.env.DSH_CODEX_ALLOWED_ROOTS) {
+  for (const root of process.env.DSH_CODEX_ALLOWED_ROOTS.split(',').map(value => value.trim()).filter(Boolean)) {
+    try { await access(root, constants.R_OK) }
+    catch { console.error('One configured allowed root is not readable'); process.exitCode = 1 }
+  }
 }
 if (!process.exitCode) console.log('dsh-codex configuration checks passed')

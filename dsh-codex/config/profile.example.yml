@@ -1,0 +1,3 @@
+# Adapt this profile to the DSH release's supported plugin/profile syntax.
+# The plugin root is injected as DSH_CODEX_PLUGIN_ROOT by bin/start.mjs.
+plugins: []
