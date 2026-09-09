@@ -37,10 +37,12 @@ Codex app-server
 
 ## 鉴权方案（一期单用户）
 
+完整安全规范见 [`security-design.md`](security-design.md)。默认采用“loopback + 登录 token + HttpOnly session cookie”，不让浏览器携带长期 token。
+
 配置：
 
 ```bash
-export DSH_CODEX_AUTH_TOKEN='<从环境变量或凭据管理器注入的至少 32 字符随机值>'
+export DSH_CODEX_AUTH_TOKEN="$(openssl rand -hex 32)"
 export DSH_CODEX_ALLOWED_ORIGIN='http://127.0.0.1:3000'
 export DSH_CODEX_ALLOWED_ROOT="$HOME"
 ```
