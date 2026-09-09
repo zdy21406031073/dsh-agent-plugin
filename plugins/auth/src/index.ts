@@ -1,5 +1,6 @@
 export * from './auth.js'
 export * from './http-auth.js'
 export * from './login-service.js'
+export * from './rate-limit.js'
 export * from './security.js'
 export * from './session-store.js'
