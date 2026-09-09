@@ -1,0 +1,8 @@
+{
+  "name": "@dsh-codex/agent-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test --import tsx tests/*.test.ts" },
+  "dependencies": { "@dsh-codex/auth-plugin": "workspace:*" }
+}

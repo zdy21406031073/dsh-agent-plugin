@@ -12,4 +12,4 @@ pnpm typecheck
 pnpm test
 ```
 
-代码规范见 `CODE_STANDARDS.md`；设计原则见 `DESIGN_PRINCIPLES.md`；开发清单见 `DEVELOPMENT.md`；完整产品需求见 `docs/codex-integration-requirements.md`。
+代码规范见 `CODE_STANDARDS.md`；设计原则见 `DESIGN_PRINCIPLES.md`；目标拆解和接口位置见 `docs/implementation-breakdown.md`；开发清单见 `DEVELOPMENT.md`；完整产品需求见 `docs/codex-integration-requirements.md`。
