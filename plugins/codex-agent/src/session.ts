@@ -1,8 +1,9 @@
-import { CodexAppServerClient, type Json, type RpcNotification } from './protocol.js'
+import { CodexAppServerClient, type Json, type RpcNotification, type RpcRequestHandler } from './protocol.js'
 import { normalizeNotification, type AgentEvent } from './events.js'
 
 export type SessionStatus = 'idle' | 'running' | 'waiting_approval' | 'completed' | 'failed'
 export type SessionOptions = { cwd: string; model?: string; approvalPolicy?: string; sandbox?: string }
+export type ApprovalHandler = RpcRequestHandler
 
 /** Owns one Codex thread and exposes lifecycle operations without UI concerns. */
 export class CodexSession {
@@ -13,8 +14,8 @@ export class CodexSession {
   private sequence = 0
   private activeTurn = false
 
-  constructor(private readonly options: SessionOptions, onEvent?: (event: AgentEvent) => void) {
-    this.client = new CodexAppServerClient({ onNotification: (message: RpcNotification) => { const event = normalizeNotification(message, ++this.sequence); this.events.push(event); onEvent?.(event) } })
+  constructor(private readonly options: SessionOptions, onEvent?: (event: AgentEvent) => void, onRequest?: ApprovalHandler) {
+    this.client = new CodexAppServerClient({ onNotification: (message: RpcNotification) => { const event = normalizeNotification(message, ++this.sequence); this.events.push(event); onEvent?.(event) }, onRequest })
   }
 
   async start(prompt: string): Promise<void> { if (this.status !== 'idle') throw new Error('Session is already started'); const result = await this.client.request('thread/start', { cwd: this.options.cwd, model: this.options.model ?? null, approvalPolicy: this.options.approvalPolicy ?? 'on-request', sandbox: this.options.sandbox ?? 'workspace-write' } as Json); this.threadId = readString(result, 'threadId'); await this.turn(prompt) }

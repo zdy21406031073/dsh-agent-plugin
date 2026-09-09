@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 export type RpcMessage = { jsonrpc: '2.0'; id?: string | number; method?: string; params?: Json; result?: Json; error?: { code: number; message: string; data?: Json } }
 export type RpcNotification = RpcMessage & { method: string; params?: Json }
+export type RpcRequestHandler = (message: RpcMessage & { id: string | number; method: string; params?: Json }) => Json | Promise<Json>
 
 /** Minimal JSON-RPC stdio transport for the Codex app-server. */
 export class CodexAppServerClient {
@@ -13,10 +14,12 @@ export class CodexAppServerClient {
   private readonly closePromise: Promise<void>
   private nextId = 1
   private readonly onNotificationHandler?: (message: RpcNotification) => void
+  private readonly onRequestHandler?: RpcRequestHandler
   private closed = false
 
-  constructor(options: { command?: string; args?: string[]; cwd?: string; env?: NodeJS.ProcessEnv; onNotification?: (message: RpcNotification) => void } = {}) {
+  constructor(options: { command?: string; args?: string[]; cwd?: string; env?: NodeJS.ProcessEnv; onNotification?: (message: RpcNotification) => void; onRequest?: RpcRequestHandler } = {}) {
     this.onNotificationHandler = options.onNotification
+    this.onRequestHandler = options.onRequest
     this.process = spawn(options.command ?? 'codex', options.args ?? ['app-server', '--stdio'], {
       cwd: options.cwd, env: { ...process.env, ...options.env }, stdio: ['pipe', 'pipe', 'pipe'],
     })
@@ -46,6 +49,10 @@ export class CodexAppServerClient {
   private receive(line: string): void {
     let message: RpcMessage
     try { message = JSON.parse(line) as RpcMessage } catch { return }
+    if (message.id !== undefined && message.method) {
+      void this.handleServerRequest(message as RpcMessage & { id: string | number; method: string; params?: Json })
+      return
+    }
     if (message.id !== undefined) {
       const p = this.pending.get(message.id); if (!p) return
       this.pending.delete(message.id)
@@ -53,5 +60,15 @@ export class CodexAppServerClient {
       return
     }
     if (message.method) this.onNotificationHandler?.(message as RpcNotification)
+  }
+
+  private async handleServerRequest(message: RpcMessage & { id: string | number; method: string; params?: Json }): Promise<void> {
+    try {
+      const result = await this.onRequestHandler?.(message)
+      this.process.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: message.id, result: result ?? null })}\n`)
+    } catch (error) {
+      const text = error instanceof Error ? error.message : 'Codex request failed'
+      this.process.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: message.id, error: { code: -32000, message: text } })}\n`)
+    }
   }
 }
