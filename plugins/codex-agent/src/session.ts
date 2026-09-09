@@ -38,6 +38,12 @@ export class CodexSession {
     }
     await this.turn(prompt)
   }
+  /** Loads an existing Codex thread without starting a new turn. */
+  async load(threadId: string): Promise<void> {
+    if (this.threadId && this.threadId !== threadId) throw new Error('Thread id does not belong to this session')
+    const result = await this.client.request('thread/resume', { threadId })
+    this.threadId = readNestedString(result, ['thread', 'id'])
+  }
   async steer(prompt: string): Promise<void> {
     if (!this.threadId || !this.turnId) throw new Error('Session has no active turn')
     if (!this.activeTurn) throw new Error('Session has no active turn')

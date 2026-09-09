@@ -21,6 +21,7 @@ test('persists metadata and removes the owned session on shutdown', async () => 
     repository: state.repo,
     createSession: options => ({
       cwd: options.cwd, model: options.model, status: 'idle', threadId: undefined,
+      load: async () => undefined,
       start: async () => undefined, resume: async () => undefined, steer: async () => undefined,
       compact: async () => null, stop: async () => undefined, close: async () => { closed = true },
     }),

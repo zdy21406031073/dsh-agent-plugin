@@ -7,7 +7,7 @@ import type { SessionMetadata, SessionRepository } from './session-repository.js
 
 /** Operations owned by the manager; the process adapter and deterministic tests implement this port. */
 export type ManagedSession = Pick<CodexSession,
-  'cwd' | 'model' | 'threadId' | 'status' | 'start' | 'resume' | 'steer' | 'compact' | 'stop' | 'close'>
+  'cwd' | 'model' | 'threadId' | 'status' | 'start' | 'load' | 'resume' | 'steer' | 'compact' | 'stop' | 'close'>
 export type SessionRecord = { readonly id: string; readonly session: ManagedSession; readonly events: EventStore; readonly createdAt: number }
 export type SessionManagerOptions = {
   maxSessions?: number
@@ -98,6 +98,39 @@ export class CodexSessionManager {
     const snapshot = this.metadata(record)
     this.enqueue(owned, async () => { await this.options.repository?.save(snapshot) })
     await this.flush(record.id)
+  }
+
+  /** Rehydrates persisted sessions by loading their Codex threads without starting turns. */
+  async restore(): Promise<readonly SessionRecord[]> {
+    const metadata = await this.options.repository?.list() ?? []
+    const restored: SessionRecord[] = []
+    for (const item of metadata) {
+      if (!item.threadId) continue
+      if (this.sessions.has(item.id)) continue
+      if (this.sessions.size >= this.maxSessions) break
+      const events = this.options.createEventStore?.(item.id) ?? new MemoryEventStore()
+      let owned: OwnedSession | undefined
+      const onEvent = (event: AgentEvent) => {
+        if (!owned || owned.closing || owned.failure) return
+        const copy = structuredClone(event)
+        const current = owned
+        this.enqueue(current, async () => { await events.append(copy); await this.options.repository?.save(this.metadata(current.record)) })
+      }
+      const session = this.options.createSession
+        ? this.options.createSession({ cwd: this.cwdPolicy.resolve(item.cwd), model: item.model }, onEvent, this.options.onRequest)
+        : new CodexSession({ cwd: this.cwdPolicy.resolve(item.cwd), model: item.model }, onEvent, this.options.onRequest)
+      try {
+        await session.load(item.threadId)
+        const record = Object.freeze({ id: item.id, events, session, createdAt: item.createdAt })
+        owned = { record, writes: Promise.resolve(), closing: false }
+        this.sessions.set(item.id, owned)
+        restored.push(record)
+      } catch (error) {
+        await session.close()
+        throw error
+      }
+    }
+    return restored
   }
 
   /** Wait for accepted writes, propagating any storage failure without leaking its payload. */
