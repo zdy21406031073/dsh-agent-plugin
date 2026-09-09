@@ -4,11 +4,21 @@ export type RateLimitResult = { allowed: boolean; retryAfterSeconds: number }
 export class FixedWindowRateLimiter {
   private readonly windows = new Map<string, { startedAt: number; count: number }>()
 
-  constructor(private readonly maxAttempts = 10, private readonly windowMs = 60_000) {}
+  constructor(private readonly maxAttempts = 10, private readonly windowMs = 60_000, private readonly maxKeys = 1024) {
+    if (![maxAttempts, windowMs, maxKeys].every(value => Number.isSafeInteger(value) && value > 0)) {
+      throw new Error('Rate limits must be positive integers')
+    }
+  }
 
   check(key: string, now = Date.now()): RateLimitResult {
+    for (const [id, window] of this.windows) {
+      if (now - window.startedAt >= this.windowMs) this.windows.delete(id)
+    }
     const current = this.windows.get(key)
-    if (!current || now - current.startedAt >= this.windowMs) {
+    if (!current) {
+      if (this.windows.size >= this.maxKeys) {
+        return { allowed: false, retryAfterSeconds: Math.ceil(this.windowMs / 1000) }
+      }
       this.windows.set(key, { startedAt: now, count: 1 })
       return { allowed: true, retryAfterSeconds: 0 }
     }

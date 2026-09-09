@@ -1,15 +1,16 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import type { LoginService } from '../../auth/src/login-service.js'
+import { createRequestGuard, type CookieVerifier } from '../../auth/src/request-guard.js'
 import { CodexSessionManager } from './session-manager.js'
 
-export type AgentHttpOptions = { sessions: CodexSessionManager; login: LoginService; allowedOrigins: readonly string[]; maxBodyBytes?: number }
+export type AgentHttpOptions = { sessions: CodexSessionManager; login: CookieVerifier; allowedOrigins: readonly string[]; maxBodyBytes?: number }
 
 /** Exposes authenticated session commands and an SSE event stream for a DSH adapter. */
 export function createAgentServer(options: AgentHttpOptions) {
   const maxBodyBytes = options.maxBodyBytes ?? 1_048_576
+  const guard = createRequestGuard(options.login, options.allowedOrigins)
   return createServer(async (request, response) => {
-    if (!originAllowed(request, options.allowedOrigins)) return json(response, 403, { ok: false })
-    if (!options.login.authenticateCookie(request.headers.cookie)) return json(response, 401, { ok: false })
+    const decision = guard(request)
+    if (!decision.ok) return json(response, decision.status, { ok: false })
     try {
       const url = new URL(request.url ?? '/', 'http://localhost')
       if (request.method === 'POST' && url.pathname === '/api/sessions') {
@@ -20,7 +21,7 @@ export function createAgentServer(options: AgentHttpOptions) {
           ...(optionalString(body, 'approvalPolicy') ? { approvalPolicy: optionalString(body, 'approvalPolicy') } : {}),
           ...(optionalString(body, 'sandbox') ? { sandbox: optionalString(body, 'sandbox') } : {}),
         })
-        if (typeof body.prompt === 'string' && body.prompt) void record.session.start(body.prompt)
+        if (typeof body.prompt === 'string' && body.prompt) await record.session.start(body.prompt)
         return json(response, 201, { id: record.id })
       }
       const match = /^\/api\/sessions\/([^/]+)$/.exec(url.pathname)
@@ -37,11 +38,6 @@ export function createAgentServer(options: AgentHttpOptions) {
       return json(response, 404, { ok: false })
     } catch { return json(response, 400, { ok: false }) }
   })
-}
-
-function originAllowed(request: IncomingMessage, origins: readonly string[]): boolean {
-  const origin = request.headers.origin
-  return typeof origin === 'string' && origins.includes(origin)
 }
 
 function stringField(value: Record<string, unknown>, key: string): string {

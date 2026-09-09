@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 
 export type AuthConfig = { token: string; headerName?: string }
 export type AuthResult = { ok: true } | { ok: false; reason: 'missing' | 'invalid' }
@@ -10,19 +10,20 @@ export class TokenAuthenticator {
   readonly headerName: string
 
   constructor(config: AuthConfig) {
-    if (config.token.length < 32) throw new Error('Authentication token must be at least 32 characters')
-    this.token = Buffer.from(config.token, 'utf8')
+    if (config.token.length < 32 || config.token.length > 1024 || /\s/.test(config.token)) throw new Error('Authentication token must be 32–1024 non-whitespace characters')
+    this.token = createHash('sha256').update(config.token).digest()
     this.headerName = (config.headerName ?? 'authorization').toLowerCase()
   }
 
   authenticate(headers: Record<string, string | string[] | undefined>): AuthResult {
     const raw = headers[this.headerName]
-    const value = Array.isArray(raw) ? raw[0] : raw
+    if (Array.isArray(raw)) return { ok: false, reason: 'invalid' }
+    const value = raw
     if (!value) return { ok: false, reason: 'missing' }
-    if (!/^Bearer\s+\S+$/.test(value)) return { ok: false, reason: 'invalid' }
+    if (value.length > 1031 || !/^Bearer \S+$/i.test(value)) return { ok: false, reason: 'invalid' }
     const supplied = value.slice(value.search(/\s/) + 1).trim()
-    const bytes = Buffer.from(supplied, 'utf8')
-    return bytes.length === this.token.length && timingSafeEqual(bytes, this.token)
+    const bytes = createHash('sha256').update(supplied).digest()
+    return timingSafeEqual(bytes, this.token)
       ? { ok: true }
       : { ok: false, reason: 'invalid' }
   }

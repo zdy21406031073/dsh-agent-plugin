@@ -7,8 +7,8 @@ test('stores only hashed session ids and expires idle sessions', () => {
   const id = store.create(0)
   assert.equal(store.size, 1)
   assert.equal(store.validate(id, 9), true)
-  assert.equal(store.validate(id, 19), true)
-  assert.equal(store.validate(id, 30), false)
+  assert.equal(store.validate(id, 18), true)
+  assert.equal(store.validate(id, 29), false)
   assert.equal(store.size, 0)
 })
 
