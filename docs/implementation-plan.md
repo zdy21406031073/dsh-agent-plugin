@@ -12,7 +12,7 @@
 浏览器 / DSH 原有聊天界面
   ↓ DSH 已有 RPC/WebSocket 扩展点
 dsh-codex adapter
-  ├─ Auth middleware（Bearer token、Origin、会话权限）
+  ├─ dsh-codex-auth plugin（Bearer token、Origin、会话权限）
   ├─ Session API（创建、列表、resume、compact、stop）
   ├─ Stream adapter（断线重连、游标、去重）
   └─ CodexSessionManager
@@ -23,7 +23,7 @@ Codex app-server
   └─ Codex 配置 → Mixin loopback gateway（可选）→ HTTP(S) proxy → 上游
 ```
 
-每层只有一个职责：协议层不存储数据，存储层不启动进程，UI 不处理 Codex 原始协议，鉴权层不参与 agent 状态机。
+每层只有一个职责：协议层不存储数据，存储层不启动进程，UI 不处理 Codex 原始协议，鉴权插件不参与 agent 状态机；Codex 插件只依赖其公开鉴权接口。
 
 ## 请求流程
 
@@ -87,3 +87,7 @@ export DSH_CODEX_ALLOWED_ROOT="$HOME"
 - 浏览器刷新后按序号补齐事件，不重复显示。
 - `deepseek-harness` 工作树无任何修改；插件包不包含其源码或 Mixin 源码。
 - API key、OAuth token、代理密码不出现在浏览器、URL、日志和 Git 历史。
+
+## 独立插件拆分
+
+`dsh-codex-auth` 是独立插件，负责认证和授权入口；`dsh-codex-agent` 只负责 Codex 会话、事件和工具生命周期。两个插件通过公开的鉴权服务接口连接。鉴权插件可以独立升级、测试和停用，停用时 Codex API 必须拒绝启动。
