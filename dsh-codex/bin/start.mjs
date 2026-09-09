@@ -4,7 +4,8 @@ import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..', '..')
-const required = ['DSH_CODEX_AUTH_TOKEN', 'DSH_CODEX_ALLOWED_ORIGINS', 'DSH_CODEX_ALLOWED_ROOTS']
+const required = ['DSH_CODEX_AUTH_TOKEN', 'DSH_CODEX_ALLOWED_ORIGINS']
+if (!process.env.DSH_CODEX_ALLOWED_ROOT && !process.env.DSH_CODEX_ALLOWED_ROOTS) required.push('DSH_CODEX_ALLOWED_ROOTS')
 const missing = required.filter(name => !process.env[name])
 if (missing.length) {
   console.error(`Missing required runtime configuration: ${missing.join(', ')}`)

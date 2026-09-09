@@ -17,7 +17,7 @@ export DSH_CODEX_ALLOWED_ROOT="$HOME"
 
 ```bash
 ./bin/doctor.mjs
-./bin/start.mjs
+DSH_CODEX_PROFILE=/path/to/profile.yml ./bin/start.mjs
 ./bin/build.mjs
 ```
 
