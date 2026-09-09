@@ -6,9 +6,14 @@ export type AgentHttpOptions = { sessions: CodexSessionManager; login: CookieVer
 
 /** Exposes authenticated session commands and an SSE event stream for a DSH adapter. */
 export function createAgentServer(options: AgentHttpOptions) {
+  return createServer(createAgentHandler(options))
+}
+
+/** Mountable handler for DSH host-webserver prefix route registration. */
+export function createAgentHandler(options: AgentHttpOptions) {
   const maxBodyBytes = options.maxBodyBytes ?? 1_048_576
   const guard = createRequestGuard(options.login, options.allowedOrigins)
-  return createServer(async (request, response) => {
+  return async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
     const decision = guard(request)
     if (!decision.ok) return json(response, decision.status, { ok: false })
     try {
@@ -37,7 +42,7 @@ export function createAgentServer(options: AgentHttpOptions) {
       if (stream && request.method === 'GET') return sse(response, await options.sessions.get(stream[1]).events.after(Number(url.searchParams.get('after') ?? 0)))
       return json(response, 404, { ok: false })
     } catch { return json(response, 400, { ok: false }) }
-  })
+  }
 }
 
 function stringField(value: Record<string, unknown>, key: string): string {
