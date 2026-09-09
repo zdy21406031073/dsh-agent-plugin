@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CodexAppServerClient } from '../src/protocol.js'
 
-const script = "process.stdin.setEncoding('utf8'); let buffer=''; process.stdin.on('data', chunk => { buffer += chunk; for (;;) { const end=buffer.indexOf('\\n'); if (end < 0) break; const line=buffer.slice(0,end); buffer=buffer.slice(end+1); const m=JSON.parse(line); if (m.method === 'notify') process.stdout.write(JSON.stringify({jsonrpc:'2.0',method:'codex/event',params:{event_id:'e1',value:1}})+'\\n'); else if (m.method !== 'hang') process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{method:m.method}})+'\\n'); } });"
+const script = "process.stdin.setEncoding('utf8'); let buffer=''; process.stdin.on('data', chunk => { buffer += chunk; for (;;) { const end=buffer.indexOf('\\n'); if (end < 0) break; const line=buffer.slice(0,end); buffer=buffer.slice(end+1); const m=JSON.parse(line); if (m.method === 'initialize') process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{ok:true}})+'\\n'); else if (m.method === 'notify') process.stdout.write(JSON.stringify({jsonrpc:'2.0',method:'codex/event',params:{event_id:'e1',value:1}})+'\\n'); else if (m.method !== 'hang') process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{method:m.method}})+'\\n'); } });"
 
 test('correlates responses and forwards notifications', async () => {
   const events: string[] = []

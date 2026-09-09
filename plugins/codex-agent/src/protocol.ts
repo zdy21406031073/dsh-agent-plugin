@@ -13,6 +13,7 @@ export class CodexAppServerClient {
   private readonly process: ChildProcessWithoutNullStreams
   private readonly closePromise: Promise<void>
   private nextId = 1
+  private readonly ready: Promise<Json>
   private readonly onNotificationHandler?: (message: RpcNotification) => void
   private readonly onRequestHandler?: RpcRequestHandler
   private closed = false
@@ -26,9 +27,18 @@ export class CodexAppServerClient {
     const lines = createInterface({ input: this.process.stdout })
     lines.on('line', line => this.receive(line))
     this.closePromise = new Promise(resolve => this.process.once('close', () => { for (const p of this.pending.values()) p.reject(new Error('Codex app-server exited')); this.pending.clear(); resolve() }))
+    this.ready = this.sendRequest('initialize', {
+      clientInfo: { name: 'dsh-codex', title: 'DSH Codex adapter', version: '0.1.0' },
+      capabilities: { experimentalApi: true },
+    }, 30_000).then(result => { this.notify('initialized'); return result })
   }
 
   request(method: string, params?: Json, timeoutMs = 30_000): Promise<Json> {
+    if (method === 'initialize') return this.sendRequest(method, params, timeoutMs)
+    return this.ready.then(() => this.sendRequest(method, params, timeoutMs))
+  }
+
+  private sendRequest(method: string, params?: Json, timeoutMs = 30_000): Promise<Json> {
     if (this.closed) return Promise.reject(new Error('Codex app-server client is closed'))
     const id = this.nextId++
     const message: RpcMessage = { jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }
