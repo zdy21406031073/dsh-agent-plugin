@@ -40,7 +40,7 @@ Codex app-server
 配置：
 
 ```bash
-export DSH_CODEX_AUTH_TOKEN='至少 32 字符的随机值'
+export DSH_CODEX_AUTH_TOKEN='<从环境变量或凭据管理器注入的至少 32 字符随机值>'
 export DSH_CODEX_ALLOWED_ORIGIN='http://127.0.0.1:3000'
 export DSH_CODEX_ALLOWED_ROOT="$HOME"
 ```

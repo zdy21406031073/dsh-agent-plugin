@@ -17,7 +17,7 @@
 export DSH_CODEX_CODEX_BIN=codex
 export DSH_CODEX_CODEX_ARGS='app-server --stdio'
 export DSH_CODEX_ALLOWED_ROOT=$HOME
-export DSH_CODEX_HTTP_PROXY=http://agent.baidu.com:8891
+export DSH_CODEX_HTTP_PROXY='http://proxy.example.invalid:8080'
 ```
 
 ## 开发启动
