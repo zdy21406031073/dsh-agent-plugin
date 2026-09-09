@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { CodexSession, type ApprovalHandler, type SessionOptions } from './session.js'
 import { CwdPolicy } from './cwd-policy.js'
 import { MemoryEventStore, type EventStore } from './event-store.js'
+import type { SessionRepository } from './session-repository.js'
 
 export type SessionRecord = { readonly id: string; readonly session: CodexSession; readonly events: EventStore; readonly createdAt: number }
 
@@ -9,14 +10,15 @@ export type SessionRecord = { readonly id: string; readonly session: CodexSessio
 export class CodexSessionManager {
   private readonly sessions = new Map<string, SessionRecord>()
 
-  constructor(private readonly cwdPolicy: CwdPolicy, private readonly maxSessions = 8, private readonly onRequest?: ApprovalHandler) {}
+  constructor(private readonly cwdPolicy: CwdPolicy, private readonly maxSessions = 8, private readonly onRequest?: ApprovalHandler, private readonly repository?: SessionRepository) {}
 
-  create(options: SessionOptions): SessionRecord {
+  async create(options: SessionOptions): Promise<SessionRecord> {
     if (this.sessions.size >= this.maxSessions) throw new Error('Session limit reached')
     const safeOptions = { ...options, cwd: this.cwdPolicy.resolve(options.cwd) }
     const events = new MemoryEventStore()
     const record = { id: randomUUID(), events, session: new CodexSession(safeOptions, event => { void events.append(event) }, this.onRequest), createdAt: Date.now() }
     this.sessions.set(record.id, record)
+    await this.repository?.save({ id: record.id, cwd: safeOptions.cwd, model: safeOptions.model, status: record.session.status, createdAt: record.createdAt, updatedAt: record.createdAt })
     return record
   }
 
@@ -30,6 +32,7 @@ export class CodexSessionManager {
     const record = this.get(id)
     this.sessions.delete(id)
     await record.session.close()
+    await this.repository?.remove(id)
   }
 
   async close(): Promise<void> {

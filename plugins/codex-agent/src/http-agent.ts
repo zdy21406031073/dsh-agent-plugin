@@ -20,7 +20,7 @@ export function createAgentHandler(options: AgentHttpOptions) {
       const url = new URL(request.url ?? '/', 'http://localhost')
       if (request.method === 'POST' && url.pathname === '/api/sessions') {
         const body = await readJson(request, maxBodyBytes)
-        const record = options.sessions.create({
+        const record = await options.sessions.create({
           cwd: stringField(body, 'cwd'),
           ...(optionalString(body, 'model') ? { model: optionalString(body, 'model') } : {}),
           ...(optionalString(body, 'approvalPolicy') ? { approvalPolicy: optionalString(body, 'approvalPolicy') } : {}),
