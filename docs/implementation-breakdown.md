@@ -91,6 +91,9 @@
 
 验收：官方 Codex 路径和 Mixin 自定义 provider 都可诊断；代理错误可定位且已脱敏。
 
+当前代码位置：`plugins/provider-adapter/src/proxy-fetch.ts` 提供服务端 HTTP(S)
+代理传输端口。它只负责出站传输，不替换 Mixin 的 provider 路由，也不把浏览器变成上游客户端。
+
 ### G9：部署、诊断和安全门禁
 
 位置：`deployment/`、`dsh-codex/bin/`。

@@ -2,5 +2,6 @@
   "name": "@dsh-codex/provider-adapter",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": { "undici": "^8.10.2" }
 }
