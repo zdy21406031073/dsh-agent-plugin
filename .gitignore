@@ -1,1 +1,4 @@
 node_modules/
+dsh-codex/data/
+dsh-codex/logs/
+dsh-codex/config/*.env
