@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { CodexSession, type SessionOptions } from './session.js'
 import { CwdPolicy } from './cwd-policy.js'
+import { MemoryEventStore, type EventStore } from './event-store.js'
 
-export type SessionRecord = { readonly id: string; readonly session: CodexSession; readonly createdAt: number }
+export type SessionRecord = { readonly id: string; readonly session: CodexSession; readonly events: EventStore; readonly createdAt: number }
 
 /** Owns Codex sessions and enforces a configured session limit. */
 export class CodexSessionManager {
@@ -13,7 +14,8 @@ export class CodexSessionManager {
   create(options: SessionOptions): SessionRecord {
     if (this.sessions.size >= this.maxSessions) throw new Error('Session limit reached')
     const safeOptions = { ...options, cwd: this.cwdPolicy.resolve(options.cwd) }
-    const record = { id: randomUUID(), session: new CodexSession(safeOptions), createdAt: Date.now() }
+    const events = new MemoryEventStore()
+    const record = { id: randomUUID(), events, session: new CodexSession(safeOptions, event => { void events.append(event) }), createdAt: Date.now() }
     this.sessions.set(record.id, record)
     return record
   }
