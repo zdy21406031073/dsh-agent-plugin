@@ -35,6 +35,7 @@ export function createAgentHandler(options: AgentHttpOptions) {
         const body = await readJson(request, maxBodyBytes)
         if (url.searchParams.has('compact')) await record.session.compact()
         else if (url.searchParams.has('stop')) await record.session.stop()
+        else if (url.searchParams.has('steer')) await record.session.steer(stringField(body, 'prompt'))
         else await record.session.resume(record.session.threadId ?? '', stringField(body, 'prompt'))
         return json(response, 200, { ok: true })
       }

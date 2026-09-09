@@ -16,16 +16,36 @@ export class CodexSession {
   private activeTurn = false
 
   constructor(private readonly options: SessionOptions, onEvent?: (event: AgentEvent) => void, onRequest?: ApprovalHandler) {
-    this.client = new CodexAppServerClient({ onNotification: (message: RpcNotification) => { const event = normalizeNotification(message, ++this.sequence); this.events.push(event); onEvent?.(event) }, onRequest })
+    this.client = new CodexAppServerClient({ onNotification: (message: RpcNotification) => {
+      const event = normalizeNotification(message, ++this.sequence)
+      this.events.push(event)
+      if (event.type.includes('turn_completed') || event.type.includes('turn_end') || event.type.includes('turn_failed') || event.type.includes('turn_aborted')) {
+        this.activeTurn = false
+        this.status = event.type.includes('failed') ? 'failed' : 'completed'
+      }
+      onEvent?.(event)
+    }, onRequest })
   }
 
   async start(prompt: string): Promise<void> { if (this.status !== 'idle') throw new Error('Session is already started'); const result = await this.client.request('thread/start', { cwd: this.options.cwd, model: this.options.model ?? null, approvalPolicy: this.options.approvalPolicy ?? 'on-request', sandbox: this.options.sandbox ?? 'workspace-write' } as Json); this.threadId = readNestedString(result, ['thread', 'id']); await this.turn(prompt) }
-  async resume(threadId: string, prompt: string): Promise<void> { if (this.threadId && this.threadId !== threadId) throw new Error('Thread id does not belong to this session'); this.threadId = threadId; await this.turn(prompt) }
+  async resume(threadId: string, prompt: string): Promise<void> {
+    if (this.threadId && this.threadId !== threadId) throw new Error('Thread id does not belong to this session')
+    if (!this.threadId) {
+      const result = await this.client.request('thread/resume', { threadId })
+      this.threadId = readNestedString(result, ['thread', 'id'])
+    }
+    await this.turn(prompt)
+  }
+  async steer(prompt: string): Promise<void> {
+    if (!this.threadId || !this.turnId) throw new Error('Session has no active turn')
+    if (!this.activeTurn) throw new Error('Session has no active turn')
+    await this.client.request('turn/steer', { threadId: this.threadId, expectedTurnId: this.turnId, input: [{ type: 'text', text: prompt }] })
+  }
   async compact(): Promise<Json> { if (!this.threadId) throw new Error('Session has not started'); return this.client.request('thread/compact/start', { threadId: this.threadId }) }
   async stop(): Promise<void> { if (this.threadId && this.turnId && this.activeTurn) await this.client.request('turn/interrupt', { threadId: this.threadId, turnId: this.turnId }); this.activeTurn = false; this.status = 'idle' }
   async close(): Promise<void> { await this.client.close() }
 
-  private async turn(prompt: string): Promise<void> { if (!this.threadId) throw new Error('Session has not started'); if (this.activeTurn) throw new Error('Session already has an active turn'); this.activeTurn = true; this.status = 'running'; try { const result = await this.client.request('turn/start', { threadId: this.threadId, input: [{ type: 'text', text: prompt }] }); this.turnId = readNestedString(result, ['turn', 'id']); this.status = 'completed' } catch (error) { this.status = 'failed'; throw error } finally { this.activeTurn = false } }
+  private async turn(prompt: string): Promise<void> { if (!this.threadId) throw new Error('Session has not started'); if (this.activeTurn) throw new Error('Session already has an active turn'); this.activeTurn = true; this.status = 'running'; try { const result = await this.client.request('turn/start', { threadId: this.threadId, input: [{ type: 'text', text: prompt }] }); this.turnId = readNestedString(result, ['turn', 'id']) } catch (error) { this.activeTurn = false; this.status = 'failed'; throw error } }
 }
 function readNestedString(value: Json, path: readonly string[]): string {
   let current: Json = value
