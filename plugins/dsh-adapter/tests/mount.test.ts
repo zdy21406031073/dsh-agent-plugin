@@ -9,12 +9,15 @@ test('registers disjoint auth and agent routes and disposes them', () => {
       routes.push(route.path)
       return () => { routes.splice(routes.indexOf(route.path), 1) }
     },
-    registerUpgrade() { return () => undefined },
+    registerUpgrade(route: { path: string }) {
+      routes.push(route.path)
+      return () => { routes.splice(routes.indexOf(route.path), 1) }
+    },
   }
   const login = { authenticateCookie: () => true } as never
   const sessions = {} as never
   const dispose = mountDshCodex({ webServer, login, sessions, allowedOrigins: ['http://localhost:3000'] })
-  assert.deepEqual(routes, ['/auth/login', '/auth/logout', '/auth/session', '/api'])
+  assert.deepEqual(routes, ['/auth/login', '/auth/logout', '/auth/session', '/api', '/api/stream'])
   dispose()
   assert.deepEqual(routes, [])
 })
