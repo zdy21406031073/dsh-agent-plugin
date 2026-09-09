@@ -14,6 +14,8 @@ export class CodexSession {
   turnId?: string
   private sequence = 0
   private activeTurn = false
+  get cwd(): string { return this.options.cwd }
+  get model(): string | undefined { return this.options.model }
 
   constructor(private readonly options: SessionOptions, onEvent?: (event: AgentEvent) => void, onRequest?: ApprovalHandler) {
     this.client = new CodexAppServerClient({ onNotification: (message: RpcNotification) => {

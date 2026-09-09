@@ -27,6 +27,7 @@ export function createAgentHandler(options: AgentHttpOptions) {
           ...(optionalString(body, 'sandbox') ? { sandbox: optionalString(body, 'sandbox') } : {}),
         })
         if (typeof body.prompt === 'string' && body.prompt) await record.session.start(body.prompt)
+        await options.sessions.sync(record)
         return json(response, 201, { id: record.id })
       }
       const match = /^\/api\/sessions\/([^/]+)$/.exec(url.pathname)
@@ -37,6 +38,7 @@ export function createAgentHandler(options: AgentHttpOptions) {
         else if (url.searchParams.has('stop')) await record.session.stop()
         else if (url.searchParams.has('steer')) await record.session.steer(stringField(body, 'prompt'))
         else await record.session.resume(record.session.threadId ?? '', stringField(body, 'prompt'))
+        await options.sessions.sync(record)
         return json(response, 200, { ok: true })
       }
       const stream = /^\/api\/sessions\/([^/]+)\/events$/.exec(url.pathname)
