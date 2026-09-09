@@ -1,4 +1,5 @@
 export * from './cwd-policy.js'
+export * from './approval-controller.js'
 export * from './event-store.js'
 export * from './events.js'
 export * from './http-agent.js'
