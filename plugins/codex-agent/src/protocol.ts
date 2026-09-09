@@ -13,6 +13,7 @@ export class CodexAppServerClient {
   private readonly closePromise: Promise<void>
   private nextId = 1
   private readonly onNotificationHandler?: (message: RpcNotification) => void
+  private closed = false
 
   constructor(options: { command?: string; args?: string[]; cwd?: string; env?: NodeJS.ProcessEnv; onNotification?: (message: RpcNotification) => void } = {}) {
     this.onNotificationHandler = options.onNotification
@@ -24,14 +25,22 @@ export class CodexAppServerClient {
     this.closePromise = new Promise(resolve => this.process.once('close', () => { for (const p of this.pending.values()) p.reject(new Error('Codex app-server exited')); this.pending.clear(); resolve() }))
   }
 
-  request(method: string, params?: Json): Promise<Json> {
+  request(method: string, params?: Json, timeoutMs = 30_000): Promise<Json> {
+    if (this.closed) return Promise.reject(new Error('Codex app-server client is closed'))
     const id = this.nextId++
     const message: RpcMessage = { jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }
-    return new Promise((resolve, reject) => { this.pending.set(id, { resolve, reject }); this.process.stdin.write(`${JSON.stringify(message)}\n`) })
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`Codex request timed out: ${method}`)) }, timeoutMs)
+      this.pending.set(id, {
+        resolve: value => { clearTimeout(timer); resolve(value) },
+        reject: error => { clearTimeout(timer); reject(error) },
+      })
+      this.process.stdin.write(`${JSON.stringify(message)}\n`)
+    })
   }
 
   notify(method: string, params?: Json): void { this.process.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method, ...(params === undefined ? {} : { params }) })}\n`) }
-  async close(): Promise<void> { this.process.kill('SIGTERM'); await this.closePromise }
+  async close(): Promise<void> { if (!this.closed) { this.closed = true; this.process.kill('SIGTERM') }; await this.closePromise }
   static id(): string { return randomUUID() }
 
   private receive(line: string): void {

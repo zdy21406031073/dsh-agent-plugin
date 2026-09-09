@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test --import tsx plugins/auth/tests/*.test.ts"
+    "test": "node --test --import tsx plugins/*/tests/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
